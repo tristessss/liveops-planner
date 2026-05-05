@@ -224,6 +224,102 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .tip{position:fixed;background:#1e293b;color:white;padding:8px 11px;border-radius:8px;font-size:11px;line-height:1.5;z-index:9999;pointer-events:none;max-width:220px;box-shadow:0 8px 24px rgba(0,0,0,.25);}
 .tip.hidden{display:none;}
 .hidden{display:none!important;}
+
+/* ── MOBILE FAB (Arsenal toggle) ── */
+.mob-fab{display:none;position:fixed;bottom:20px;right:20px;z-index:600;width:52px;height:52px;border-radius:50%;background:#6366f1;color:white;border:none;font-size:22px;cursor:pointer;box-shadow:0 6px 20px rgba(99,102,241,.5);align-items:center;justify-content:center;}
+.arsenal-backdrop{display:none;position:fixed;inset:0;background:rgba(15,23,42,.4);z-index:498;backdrop-filter:blur(2px);}
+.arsenal-backdrop.open{display:block;}
+
+/* ── TOUCH DRAG GHOST ── */
+.touch-ghost{position:fixed;pointer-events:none;z-index:9000;opacity:.85;transform:scale(1.05) rotate(2deg);box-shadow:0 16px 40px rgba(0,0,0,.3);transition:none;}
+
+/* ══════════════════════════════════
+   MOBILE  ≤ 768 px
+══════════════════════════════════ */
+@media(max-width:768px){
+  /* Header */
+  .header{height:auto;padding:8px 12px;flex-wrap:wrap;gap:6px;}
+  .header-left h1{font-size:13px;}
+  .header-hint{font-size:11px;order:3;width:100%;padding-bottom:2px;}
+  .header>div:last-child{gap:5px;}
+  .header>div:last-child button,
+  .header>div:last-child label{font-size:10px;padding:4px 8px;}
+
+  /* Stats bar — horizontal scroll */
+  .stats-bar{overflow-x:auto;flex-wrap:nowrap;gap:0;-webkit-overflow-scrolling:touch;}
+  .stats-bar::-webkit-scrollbar{display:none;}
+  .stat{flex-shrink:0;}
+  .stat-value{font-size:16px;}
+
+  /* Hide desktop sidebar */
+  .arsenal{
+    position:fixed;bottom:0;left:0;right:0;
+    width:100%!important;min-width:unset!important;
+    height:72vh;
+    border-radius:18px 18px 0 0;
+    border-right:none;
+    border-top:1px solid #e2e8f0;
+    box-shadow:0 -8px 40px rgba(0,0,0,.18);
+    transform:translateY(100%);
+    transition:transform .3s cubic-bezier(.4,0,.2,1);
+    z-index:499;
+    overflow:hidden;
+  }
+  .arsenal.mob-open{transform:translateY(0);}
+
+  /* Drag handle on arsenal */
+  .arsenal-hdr::before{
+    content:'';display:block;width:36px;height:4px;
+    background:#e2e8f0;border-radius:2px;
+    margin:0 auto 10px;
+  }
+  .arsenal-hdr{flex-direction:column;align-items:stretch;padding-top:14px;}
+
+  /* View area fills screen */
+  .main-layout{flex-direction:column;}
+  .view-area{width:100%;flex:1;}
+
+  /* Toolbar */
+  .toolbar{padding:6px 10px;gap:6px;}
+  .view-title{font-size:13px;}
+  .nav-btn{width:26px;height:26px;font-size:11px;}
+  .view-tabs{flex-wrap:nowrap;overflow-x:auto;}
+  .view-tab{padding:5px 9px;font-size:11px;white-space:nowrap;}
+
+  /* Calendar */
+  .scroll-area{padding:8px;}
+  .cal-dow{font-size:9px;padding:5px 0;}
+  .cal-day{min-height:44px;padding:3px 3px;}
+  .cal-dn{font-size:10px;}
+  .cal-day.today .cal-dn{width:18px;height:18px;font-size:9px;}
+  .ev-bar{height:18px;font-size:9px;padding:0 4px;}
+  .bar-x{display:none!important;}
+
+  /* Gantt — scrollable */
+  .gantt-wrap{overflow-x:auto;}
+
+  /* Segments table — scrollable */
+  .gloss-wrap{overflow-x:auto;}
+
+  /* Users table — scrollable */
+  .users-wrap{overflow-x:auto;}
+
+  /* Modals — slide up from bottom, full width */
+  .modal-overlay{align-items:flex-end;padding:0;}
+  .modal{width:100%;max-width:100%;border-radius:18px 18px 0 0;max-height:92vh;padding:20px 16px 32px;}
+
+  /* FAB visible */
+  .mob-fab{display:flex;}
+
+  /* Scroll area bottom padding so FAB doesn't cover content */
+  .scroll-area{padding-bottom:80px;}
+}
+
+@media(max-width:420px){
+  .header-left h1{font-size:12px;}
+  .view-tab{font-size:10px;padding:4px 7px;}
+  .stat-value{font-size:14px;}
+}
 </style>
 <!-- Firebase SDKs (compat build — works in plain HTML) -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
@@ -335,6 +431,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
 <input type="file" id="csvFileInput" accept=".csv,text/csv" onchange="handleFileInput(this)" style="display:none;">
 <div class="tip hidden" id="tip"></div>
+
+<!-- Mobile arsenal backdrop + FAB -->
+<div class="arsenal-backdrop" id="arsenalBackdrop" onclick="closeMobArsenal()"></div>
+<button class="mob-fab" id="mobFab" onclick="toggleMobArsenal()" title="Open Campaign Arsenal">🎯</button>
 
 <script>
 // ══════════════════════════════════════════════
@@ -599,7 +699,8 @@ function renderArsenal(){
     const reach=segReach(c);
     return `<div class="camp-card" draggable="true" data-cid="${c.id}"
          style="border-color:${c.color}22;background:${c.color}09;"
-         ondragstart="onDS(event,'${c.id}')" ondragend="onDE()">
+         ondragstart="onDS(event,'${c.id}')" ondragend="onDE()"
+         ontouchstart="onTouchStart(event,'${c.id}')"
       <div class="card-top">
         <div class="card-dot" style="background:${c.color}"></div>
         <div class="card-name">${esc(c.name)}${hasRules?'<span class="rules-pill">rules</span>':''}</div>
@@ -1010,6 +1111,71 @@ USR002, 45, 30, Casino, 320, "churned,at_risk"<br>
 USR003, 1, 1, Poker, 12, "fresh"</div>
     </div>`;
 }
+
+// ══════════════════════════════════════════════
+//  MOBILE ARSENAL TOGGLE
+// ══════════════════════════════════════════════
+function toggleMobArsenal(){
+  const open=document.querySelector('.arsenal').classList.toggle('mob-open');
+  document.getElementById('arsenalBackdrop').classList.toggle('open',open);
+  document.getElementById('mobFab').textContent=open?'✕':'🎯';
+}
+function closeMobArsenal(){
+  document.querySelector('.arsenal').classList.remove('mob-open');
+  document.getElementById('arsenalBackdrop').classList.remove('open');
+  document.getElementById('mobFab').textContent='🎯';
+}
+
+// ══════════════════════════════════════════════
+//  TOUCH DRAG & DROP  (iOS / Android)
+// ══════════════════════════════════════════════
+let _td=null; // active touch drag state
+
+function onTouchStart(e,cid){
+  if(e.touches.length!==1)return;
+  const touch=e.touches[0];
+  const card=e.currentTarget;
+  const rect=card.getBoundingClientRect();
+  // Build floating ghost
+  const ghost=card.cloneNode(true);
+  ghost.className=card.className+' touch-ghost';
+  ghost.style.cssText+=`;width:${rect.width}px;left:${touch.clientX-(touch.clientX-rect.left)}px;top:${touch.clientY-(touch.clientY-rect.top)}px;`;
+  document.body.appendChild(ghost);
+  _td={cid,ghost,ox:touch.clientX-rect.left,oy:touch.clientY-rect.top,lastDay:null};
+  card.style.opacity='.3';
+  e.preventDefault();
+}
+
+function _onTouchMove(e){
+  if(!_td)return;
+  const t=e.touches[0];
+  _td.ghost.style.left=(t.clientX-_td.ox)+'px';
+  _td.ghost.style.top=(t.clientY-_td.oy)+'px';
+  // Highlight calendar day under finger
+  _td.ghost.style.pointerEvents='none';
+  const el=document.elementFromPoint(t.clientX,t.clientY);
+  const day=el?.closest('[data-date]');
+  document.querySelectorAll('.cal-day.drop-over').forEach(d=>d.classList.remove('drop-over'));
+  if(day){day.classList.add('drop-over');_td.lastDay=day.getAttribute('data-date');}
+  else _td.lastDay=null;
+  e.preventDefault();
+}
+
+function _onTouchEnd(e){
+  if(!_td)return;
+  _td.ghost.remove();
+  document.querySelectorAll('.camp-card').forEach(c=>c.style.opacity='');
+  document.querySelectorAll('.cal-day.drop-over').forEach(d=>d.classList.remove('drop-over'));
+  if(_td.lastDay){
+    S.placements.push({id:uid(),campaignId:_td.cid,startDate:_td.lastDay});
+    save();render();
+    if(window.innerWidth<=768)closeMobArsenal();
+  }
+  _td=null;
+}
+
+document.addEventListener('touchmove',_onTouchMove,{passive:false});
+document.addEventListener('touchend',_onTouchEnd);
 
 // ══════════════════════════════════════════════
 //  DRAG & DROP
