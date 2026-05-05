@@ -213,6 +213,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .add-rule-btn{padding:4px 10px;border:1.5px dashed #e2e8f0;background:white;border-radius:6px;cursor:pointer;font-size:11px;color:#94a3b8;transition:all .1s;}
 .add-rule-btn:hover{border-color:#6366f1;color:#6366f1;}
 
+/* ── UNIT TOGGLE ── */
+.unit-toggle{display:flex;border:1.5px solid #e2e8f0;border-radius:7px;overflow:hidden;flex-shrink:0;}
+.unit-btn{padding:6px 11px;border:none;background:white;cursor:pointer;font-size:12px;font-weight:600;color:#64748b;transition:all .1s;}
+.unit-btn.active{background:#6366f1;color:white;}
+.input-unit-wrap{display:flex;gap:6px;align-items:center;}
+.input-unit-wrap input,.input-unit-wrap select{flex:1;min-width:0;}
+.fg-row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px;}
+.caps-badge{display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:700;padding:1px 5px;border-radius:100px;background:#fef3c7;color:#d97706;margin-left:3px;}
+.rate-badge{display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:700;padding:1px 5px;border-radius:100px;background:#e0f2fe;color:#0284c7;margin-left:3px;}
+
 /* ── COL MODAL ── */
 .col-modal{width:370px;}
 .col-list{display:flex;flex-direction:column;gap:6px;margin-bottom:12px;}
@@ -392,11 +402,35 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         <label>Display Segment <span style="color:#94a3b8;font-weight:400">(shown on card)</span></label>
         <select id="fSegment"></select>
       </div>
-      <div class="fg"><label>Duration (days)</label><input type="number" id="fDur" min="1" max="365" value="7"></div>
+      <div class="fg">
+        <label>Duration</label>
+        <div class="input-unit-wrap">
+          <input type="number" id="fDur" min="1" max="9999" value="7">
+          <div class="unit-toggle">
+            <button type="button" class="unit-btn active" id="btnDays"  onclick="setDurUnit('days')">Days</button>
+            <button type="button" class="unit-btn"        id="btnHours" onclick="setDurUnit('hours')">Hours</button>
+          </div>
+        </div>
+      </div>
     </div>
     <div class="fg-row">
-      <div class="fg"><label>Budget / Spend ($)</label><input type="number" id="fSpend" placeholder="10000" min="0"></div>
+      <div class="fg">
+        <label>Cost ($)</label>
+        <div class="input-unit-wrap">
+          <input type="number" id="fSpend" placeholder="10000" min="0">
+          <select id="fSpendUnit" style="width:90px;padding:8px 6px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:12px;outline:none;font-family:inherit;">
+            <option value="total">Total</option>
+            <option value="per_day">/ Day</option>
+            <option value="per_hour">/ Hour</option>
+          </select>
+        </div>
+      </div>
       <div class="fg"><label>Colour</label><input type="color" id="fColor" value="#6366f1" style="height:38px;cursor:pointer;"></div>
+    </div>
+    <div class="fg-row3">
+      <div class="fg" style="margin-bottom:0"><label>Usage Rate %</label><input type="number" id="fUsageRate" placeholder="100" min="0" max="100"></div>
+      <div class="fg" style="margin-bottom:0"><label>Min Cap ($)</label><input type="number" id="fMinCap" placeholder="None" min="0"></div>
+      <div class="fg" style="margin-bottom:0"><label>Max Cap ($)</label><input type="number" id="fMaxCap" placeholder="None" min="0"></div>
     </div>
 
     <!-- TARGETING RULES -->
@@ -632,7 +666,16 @@ function userQualifyingCamps(user){
 // ══════════════════════════════════════════════
 //  PLACEMENTS
 // ══════════════════════════════════════════════
-function pEnd(p){const c=getCamp(p.campaignId);if(!c)return p.startDate;return addDays(p.startDate,c.dur-1);}
+// Duration helpers
+function durDays(c){return c.durUnit==='hours'?Math.max(1,Math.ceil(c.dur/24)):c.dur;}
+function durLabel(c){return c.durUnit==='hours'?`${c.dur}h`:`${c.dur}d`;}
+function effectiveSpend(c){
+  const dd=durDays(c), dh=c.durUnit==='hours'?c.dur:c.dur*24;
+  if(c.spendUnit==='per_day')  return c.spend*dd;
+  if(c.spendUnit==='per_hour') return c.spend*dh;
+  return c.spend;
+}
+function pEnd(p){const c=getCamp(p.campaignId);if(!c)return p.startDate;return addDays(p.startDate,durDays(c)-1);}
 function placementsInMonth(y,m){
   const ms=fmtD(y,m,1),me=fmtD(y,m,dim(y,m));
   return S.placements.filter(p=>{const c=getCamp(p.campaignId);if(!c)return false;return p.startDate<=me&&pEnd(p)>=ms;});
@@ -667,7 +710,7 @@ function conflictSet(){
 // ══════════════════════════════════════════════
 function computeStats(){
   const active=placementsInMonth(S.year,S.month);
-  const totalSpend=active.reduce((s,p)=>{const c=getCamp(p.campaignId);return s+(c?c.spend:0);},0);
+  const totalSpend=active.reduce((s,p)=>{const c=getCamp(p.campaignId);return s+(c?effectiveSpend(c):0);},0);
   const matchedSegIds=new Set();
   active.forEach(p=>{const c=getCamp(p.campaignId);if(!c)return;matchSegments(c).forEach(s=>matchedSegIds.add(s.id));});
   const totalReach=[...matchedSegIds].reduce((s,sid)=>{const seg=getSeg(sid);return s+(seg?seg.size:0);},0);
@@ -710,10 +753,15 @@ function renderArsenal(){
       </div>
       <div><span class="card-seg" style="background:${c.color}18;color:${c.color};">${esc(c.segment)}</span></div>
       <div class="card-bottom">
-        <span class="card-spend">${fmtMoney(c.spend)}</span>
-        <span class="card-dur">${c.dur}d</span>
+        <span class="card-spend">${fmtMoney(effectiveSpend(c))}${c.spendUnit==='per_day'?'<span style="font-size:9px;color:#64748b">/d</span>':c.spendUnit==='per_hour'?'<span style="font-size:9px;color:#64748b">/h</span>':''}</span>
+        <span class="card-dur">${durLabel(c)}</span>
         <span class="card-reach">${fmtNum(reach)} users</span>
       </div>
+      ${(c.usageRate||c.minCap||c.maxCap)?`<div style="margin-top:5px;display:flex;flex-wrap:wrap;gap:2px;">
+        ${c.usageRate?`<span class="rate-badge">⚡ ${c.usageRate}%</span>`:''}
+        ${c.minCap?`<span class="caps-badge">▼ ${fmtMoney(c.minCap)}</span>`:''}
+        ${c.maxCap?`<span class="caps-badge">▲ ${fmtMoney(c.maxCap)}</span>`:''}
+      </div>`:''}
     </div>`;
   }).join('');
 }
@@ -1189,8 +1237,9 @@ function showTip(e,pid){
   tip.innerHTML=`
     <div style="font-weight:800;margin-bottom:3px;">${esc(c.name)}</div>
     <div style="color:#94a3b8;font-size:10px;">🎯 ${esc(segNames)}</div>
-    <div style="color:#94a3b8;font-size:10px;">${p.startDate} → ${pe} (${c.dur}d)</div>
-    <div style="color:#34d399;font-weight:700;margin-top:3px;">${fmtMoney(c.spend)} · ${fmtNum(reach)} users</div>
+    <div style="color:#94a3b8;font-size:10px;">${p.startDate} → ${pe} (${durLabel(c)})</div>
+    <div style="color:#34d399;font-weight:700;margin-top:3px;">${fmtMoney(effectiveSpend(c))}${c.spendUnit==='per_day'?'/d':c.spendUnit==='per_hour'?'/h':''} · ${fmtNum(reach)} users</div>
+    ${c.usageRate!=null||c.minCap||c.maxCap?`<div style="color:#fbbf24;font-size:10px;margin-top:2px;">${c.usageRate!=null?'⚡ '+c.usageRate+'% usage':''}${c.minCap?' · ▼ '+fmtMoney(c.minCap):''}${c.maxCap?' · ▲ '+fmtMoney(c.maxCap):''}</div>`:''}
     ${c.desc?`<div style="color:#94a3b8;font-size:10px;margin-top:3px;border-top:1px solid #334155;padding-top:3px;">${esc(c.desc)}</div>`:''}`;
   tip.classList.remove('hidden');
   tip.style.left=(e.clientX+14)+'px';
@@ -1201,9 +1250,15 @@ function hideTip(){document.getElementById('tip').classList.add('hidden');}
 // ══════════════════════════════════════════════
 //  CAMPAIGN MODAL + RULES
 // ══════════════════════════════════════════════
+function setDurUnit(u){
+  document.getElementById('btnDays').classList.toggle('active',u==='days');
+  document.getElementById('btnHours').classList.toggle('active',u==='hours');
+  document.getElementById('btnDays').dataset.unit=u;
+}
+function getDurUnit(){return document.getElementById('btnHours').classList.contains('active')?'hours':'days';}
+
 function openCampModal(cid=null){
   S.editingCamp=cid;
-  // Segment dropdown from S.segments
   document.getElementById('fSegment').innerHTML=S.segments.map(s=>`<option value="${esc(s.name)}">${esc(s.name)} (${fmtNum(s.size)} users)</option>`).join('');
   if(cid){
     const c=getCamp(cid);
@@ -1212,7 +1267,12 @@ function openCampModal(cid=null){
     document.getElementById('fDesc').value=c.desc||'';
     document.getElementById('fSegment').value=c.segment;
     document.getElementById('fDur').value=c.dur;
+    setDurUnit(c.durUnit||'days');
     document.getElementById('fSpend').value=c.spend;
+    document.getElementById('fSpendUnit').value=c.spendUnit||'total';
+    document.getElementById('fUsageRate').value=c.usageRate||'';
+    document.getElementById('fMinCap').value=c.minCap||'';
+    document.getElementById('fMaxCap').value=c.maxCap||'';
     document.getElementById('fColor').value=c.color;
     editRules=JSON.parse(JSON.stringify(c.rules||[]));
     document.getElementById('btnDelCamp').classList.remove('hidden');
@@ -1220,7 +1280,13 @@ function openCampModal(cid=null){
     document.getElementById('campModalTitle').textContent='Add Campaign';
     document.getElementById('fName').value='';document.getElementById('fDesc').value='';
     if(S.segments.length)document.getElementById('fSegment').value=S.segments[0].name;
-    document.getElementById('fDur').value=7;document.getElementById('fSpend').value=10000;
+    document.getElementById('fDur').value=7;
+    setDurUnit('days');
+    document.getElementById('fSpend').value=10000;
+    document.getElementById('fSpendUnit').value='total';
+    document.getElementById('fUsageRate').value='';
+    document.getElementById('fMinCap').value='';
+    document.getElementById('fMaxCap').value='';
     document.getElementById('fColor').value='#6366f1';
     editRules=[];
     document.getElementById('btnDelCamp').classList.add('hidden');
@@ -1271,9 +1337,19 @@ function updatePreview(){
 
 function saveCampaign(){
   const name=document.getElementById('fName').value.trim();if(!name){alert('Please enter a campaign name.');return;}
-  const data={name,desc:document.getElementById('fDesc').value.trim(),segment:document.getElementById('fSegment').value,
+  const rawUsage=parseInt(document.getElementById('fUsageRate').value);
+  const rawMin=parseInt(document.getElementById('fMinCap').value);
+  const rawMax=parseInt(document.getElementById('fMaxCap').value);
+  const data={
+    name, desc:document.getElementById('fDesc').value.trim(),
+    segment:document.getElementById('fSegment').value,
     dur:Math.max(1,parseInt(document.getElementById('fDur').value)||7),
-    spend:parseInt(document.getElementById('fSpend').value)||0,
+    durUnit:getDurUnit(),
+    spend:parseFloat(document.getElementById('fSpend').value)||0,
+    spendUnit:document.getElementById('fSpendUnit').value,
+    usageRate:isNaN(rawUsage)?null:Math.min(100,Math.max(0,rawUsage)),
+    minCap:isNaN(rawMin)?null:rawMin,
+    maxCap:isNaN(rawMax)?null:rawMax,
     color:document.getElementById('fColor').value,
     rules:JSON.parse(JSON.stringify(editRules.filter(r=>r.value!==''&&r.value!==undefined)))};
   if(S.editingCamp){const i=S.campaigns.findIndex(c=>c.id===S.editingCamp);if(i!==-1)S.campaigns[i]={...S.campaigns[i],...data};}
