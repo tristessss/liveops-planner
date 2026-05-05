@@ -1,0 +1,1135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Liveops Campaign Planner</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f1f5f9;color:#1e293b;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+
+/* ── HEADER ── */
+.header{background:linear-gradient(135deg,#1e293b,#2d3f55);color:white;padding:0 20px;height:50px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.header-left{display:flex;align-items:center;gap:10px;}
+.header-left h1{font-size:15px;font-weight:700;}
+.badge{padding:2px 8px;border-radius:100px;font-size:10px;font-weight:700;}
+.badge-beta{background:#6366f1;}
+.badge-saved{background:#059669;}
+.header-hint{font-size:12px;color:#94a3b8;}
+
+/* ── STATS BAR ── */
+.stats-bar{background:white;border-bottom:1px solid #e2e8f0;padding:8px 20px;display:flex;align-items:center;flex-shrink:0;}
+.stat{display:flex;flex-direction:column;gap:1px;padding-right:24px;}
+.stat-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#94a3b8;}
+.stat-value{font-size:20px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.2;}
+.sv-indigo{color:#6366f1;} .sv-green{color:#059669;} .sv-red{color:#ef4444;}
+.stat-div{width:1px;height:36px;background:#e2e8f0;margin-right:24px;flex-shrink:0;}
+
+/* ── MAIN LAYOUT ── */
+.main-layout{display:flex;flex:1;overflow:hidden;}
+
+/* ── ARSENAL ── */
+.arsenal{width:258px;min-width:258px;background:white;border-right:1px solid #e2e8f0;display:flex;flex-direction:column;overflow:hidden;}
+.arsenal-hdr{padding:12px 14px 10px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;}
+.arsenal-title{font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;}
+.add-btn{display:flex;align-items:center;gap:5px;padding:5px 11px;background:#6366f1;color:white;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;transition:background .15s;}
+.add-btn:hover{background:#4f46e5;}
+.arsenal-list{flex:1;overflow-y:auto;padding:10px;display:flex;flex-direction:column;gap:7px;}
+.arsenal-list::-webkit-scrollbar{width:4px;}
+.arsenal-list::-webkit-scrollbar-thumb{background:#e2e8f0;border-radius:4px;}
+
+/* ── CAMPAIGN CARD ── */
+.camp-card{border-radius:9px;padding:10px 11px;cursor:grab;border:1.5px solid transparent;transition:transform .15s,box-shadow .15s;user-select:none;}
+.camp-card:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.11);}
+.camp-card:active{cursor:grabbing;transform:scale(.97);}
+.camp-card.dragging{opacity:.35;}
+.card-top{display:flex;align-items:flex-start;gap:7px;margin-bottom:5px;}
+.card-dot{width:8px;height:8px;border-radius:50%;margin-top:3px;flex-shrink:0;}
+.card-name{font-size:12px;font-weight:700;line-height:1.3;flex:1;}
+.card-act{background:none;border:none;cursor:pointer;font-size:13px;padding:0;line-height:1;}
+.card-edit{color:#cbd5e1;}.card-edit:hover{color:#64748b;}
+.card-del{color:#fca5a5;visibility:hidden;}.camp-card:hover .card-del{visibility:visible;}.card-del:hover{color:#dc2626;}
+.card-seg{display:inline-flex;align-items:center;font-size:10px;font-weight:600;padding:2px 7px;border-radius:100px;margin-bottom:7px;}
+.card-bottom{display:flex;justify-content:space-between;align-items:center;}
+.card-spend{font-size:12px;font-weight:800;color:#059669;}
+.card-dur{font-size:11px;font-weight:600;color:#6366f1;}
+.card-reach{font-size:11px;color:#94a3b8;}
+.rules-pill{font-size:9px;font-weight:700;padding:1px 5px;border-radius:100px;background:#ede9fe;color:#7c3aed;margin-left:3px;}
+
+/* ── VIEW AREA ── */
+.view-area{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+.toolbar{background:white;border-bottom:1px solid #e2e8f0;padding:9px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0;}
+.view-title{font-size:15px;font-weight:700;flex:1;text-align:center;}
+.nav-btn{width:28px;height:28px;border:1px solid #e2e8f0;background:white;border-radius:6px;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;transition:background .1s;}
+.nav-btn:hover{background:#f1f5f9;}
+.view-tabs{display:flex;border:1px solid #e2e8f0;border-radius:7px;overflow:hidden;}
+.view-tab{padding:5px 11px;border:none;background:white;cursor:pointer;font-size:12px;font-weight:600;color:#64748b;transition:all .1s;white-space:nowrap;}
+.view-tab.active{background:#6366f1;color:white;}
+.scroll-area{flex:1;overflow-y:auto;padding:14px;}
+.scroll-area::-webkit-scrollbar{width:6px;}
+.scroll-area::-webkit-scrollbar-thumb{background:#e2e8f0;border-radius:4px;}
+
+/* ── CALENDAR ── */
+.cal-month{background:white;border-radius:10px;border:1px solid #e2e8f0;overflow:hidden;}
+.cal-dow-row{display:grid;grid-template-columns:repeat(7,1fr);background:#f8fafc;border-bottom:1px solid #e2e8f0;}
+.cal-dow{padding:7px 0;text-align:center;font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;}
+.cal-week{border-bottom:1px solid #f1f5f9;}.cal-week:last-child{border-bottom:none;}
+.cal-days-row{display:grid;grid-template-columns:repeat(7,1fr);}
+.cal-day{min-height:56px;border-right:1px solid #f1f5f9;padding:5px 7px;transition:background .1s;}
+.cal-day:last-child{border-right:none;}
+.cal-day.other-month{background:#fafbfc;}.cal-day.other-month .cal-dn{color:#d1d5db;}
+.cal-day.today{background:#faf5ff;}
+.cal-day.drop-over{background:#eff6ff!important;outline:2px dashed #6366f1;outline-offset:-2px;}
+.cal-dn{font-size:12px;font-weight:500;color:#64748b;display:inline-block;}
+.cal-day.today .cal-dn{background:#6366f1;color:white;width:21px;height:21px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:11px;}
+.events-sec{padding:2px 0 4px;}
+.ev-grid{display:grid;grid-template-columns:repeat(7,1fr);height:24px;margin:1px 0;}
+.ev-bar{height:22px;border-radius:4px;cursor:pointer;display:flex;align-items:center;padding:0 7px;font-size:10px;font-weight:700;color:white;overflow:hidden;white-space:nowrap;margin:0 1px;transition:filter .1s;}
+.ev-bar:hover{filter:brightness(.88);}
+.ev-bar.cr{border-radius:4px 0 0 4px;margin-right:0;}
+.ev-bar.cl{border-radius:0 4px 4px 0;margin-left:0;}
+.ev-bar.cb{border-radius:0;margin:0;}
+.bar-label{overflow:hidden;text-overflow:ellipsis;flex:1;}
+.bar-x{margin-left:4px;background:rgba(0,0,0,.22);border:none;color:white;border-radius:50%;width:13px;height:13px;display:flex;align-items:center;justify-content:center;font-size:8px;cursor:pointer;flex-shrink:0;visibility:hidden;padding:0;}
+.ev-bar:hover .bar-x{visibility:visible;}
+.ev-bar.conflict{box-shadow:0 0 0 2px #fca5a5;}
+
+/* ── GANTT ── */
+.gantt-wrap{background:white;border-radius:10px;border:1px solid #e2e8f0;overflow:hidden;}
+.gantt-hdr{display:flex;border-bottom:1px solid #e2e8f0;background:#f8fafc;position:sticky;top:0;z-index:10;}
+.gantt-lbl-col{flex-shrink:0;border-right:1px solid #e2e8f0;padding:8px 12px;display:flex;align-items:center;}
+.gantt-lbl-col span{font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;}
+.gantt-days-hdr{display:flex;}
+.gantt-day-h{flex-shrink:0;text-align:center;font-size:10px;color:#94a3b8;font-weight:500;padding:8px 0;}
+.gantt-day-h.today-col{color:#6366f1;font-weight:800;}
+.gantt-row{display:flex;border-bottom:1px solid #f1f5f9;align-items:stretch;}
+.gantt-row:last-child{border-bottom:none;}
+.gantt-row:hover{background:#fafbfc;}
+.gantt-row-lbl{flex-shrink:0;padding:8px 12px;border-right:1px solid #f1f5f9;display:flex;flex-direction:column;justify-content:center;gap:2px;}
+.gantt-camp-name{font-size:12px;font-weight:700;}
+.gantt-camp-meta{font-size:10px;color:#94a3b8;}
+.gantt-bars{flex:1;position:relative;min-height:38px;overflow:hidden;}
+.gantt-bar{position:absolute;top:8px;height:22px;border-radius:4px;display:flex;align-items:center;padding:0 8px;font-size:10px;font-weight:700;color:white;overflow:hidden;white-space:nowrap;cursor:pointer;transition:filter .1s;}
+.gantt-bar:hover{filter:brightness(.88);}
+.gantt-today{position:absolute;top:0;bottom:0;width:2px;background:#6366f1;opacity:.2;pointer-events:none;}
+.gantt-empty{padding:48px 20px;text-align:center;color:#94a3b8;font-size:12px;}
+
+/* ── SEGMENTS GLOSSARY ── */
+.gloss-wrap{background:white;border-radius:10px;border:1px solid #e2e8f0;overflow:hidden;}
+.gloss-toolbar{padding:10px 14px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;background:#f8fafc;}
+.gloss-title{font-size:12px;font-weight:700;color:#64748b;}
+.gloss-actions{display:flex;gap:8px;}
+.btn-outline{padding:5px 12px;border:1.5px solid #e2e8f0;background:white;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;color:#64748b;transition:all .1s;}
+.btn-outline:hover{border-color:#6366f1;color:#6366f1;}
+.gloss-table{width:100%;border-collapse:collapse;font-size:12px;}
+.gloss-table th{padding:8px 12px;text-align:left;background:#f8fafc;font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid #e2e8f0;white-space:nowrap;position:sticky;top:0;z-index:5;}
+.gloss-table th .th-in{display:flex;align-items:center;gap:6px;}
+.gloss-table td{padding:7px 12px;border-bottom:1px solid #f8fafc;vertical-align:middle;}
+.gloss-table tr:last-child td{border-bottom:none;}
+.gloss-table tr:hover td{background:#fafbfc;}
+.g-input{border:1.5px solid transparent;border-radius:6px;padding:4px 8px;font-size:12px;font-family:inherit;width:100%;background:transparent;transition:border-color .1s;color:#1e293b;}
+.g-input:hover{border-color:#e2e8f0;}
+.g-input:focus{border-color:#6366f1;background:white;outline:none;box-shadow:0 0 0 3px rgba(99,102,241,.1);}
+.g-input.num{width:80px;text-align:right;}
+.tags-cell{display:flex;flex-wrap:wrap;gap:4px;align-items:center;}
+.tag-chip{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:100px;font-size:10px;font-weight:600;background:#ede9fe;color:#6d28d9;}
+.tag-rm{background:none;border:none;cursor:pointer;color:#a78bfa;font-size:10px;padding:0;line-height:1;}
+.tag-rm:hover{color:#7c3aed;}
+.tag-add{border:1.5px dashed #e2e8f0;border-radius:100px;padding:2px 8px;font-size:10px;font-family:inherit;outline:none;width:80px;color:#94a3b8;transition:border-color .1s;background:transparent;}
+.tag-add:focus{border-color:#6366f1;color:#1e293b;width:100px;}
+.tag-add::placeholder{color:#cbd5e1;}
+.matched-camps{display:flex;flex-wrap:wrap;gap:3px;}
+.mc-chip{display:inline-flex;align-items:center;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;color:white;}
+.mc-none{font-size:11px;color:#cbd5e1;}
+.col-del-btn{background:none;border:none;cursor:pointer;color:#fca5a5;font-size:11px;padding:0;}
+.col-del-btn:hover{color:#dc2626;}
+.row-del-btn{background:none;border:none;cursor:pointer;color:#fca5a5;font-size:13px;padding:4px;visibility:hidden;}
+.gloss-table tr:hover .row-del-btn{visibility:visible;}
+.row-del-btn:hover{color:#dc2626;}
+
+/* ── USERS / CSV TAB ── */
+.users-wrap{background:white;border-radius:10px;border:1px solid #e2e8f0;overflow:hidden;display:flex;flex-direction:column;}
+.users-toolbar{padding:10px 16px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:12px;background:#f8fafc;flex-shrink:0;}
+.users-info{font-size:12px;color:#64748b;flex:1;}
+.users-info b{color:#1e293b;}
+.search-inp{padding:6px 11px;border:1.5px solid #e2e8f0;border-radius:7px;font-size:12px;outline:none;width:200px;font-family:inherit;}
+.search-inp:focus{border-color:#6366f1;}
+.upload-zone{margin:24px auto;max-width:500px;border:2px dashed #e2e8f0;border-radius:12px;padding:40px 28px;text-align:center;cursor:pointer;transition:all .2s;}
+.upload-zone:hover,.upload-zone.dz-over{border-color:#6366f1;background:#f5f3ff;}
+.upload-icon{font-size:36px;margin-bottom:12px;}
+.upload-title{font-size:16px;font-weight:700;margin-bottom:6px;}
+.upload-hint{font-size:12px;color:#94a3b8;line-height:1.7;}
+.upload-example{margin-top:16px;font-size:11px;color:#94a3b8;background:#f8fafc;border-radius:8px;padding:10px 14px;text-align:left;font-family:monospace;line-height:1.6;}
+.users-table-wrap{flex:1;overflow:auto;}
+.users-table{width:100%;border-collapse:collapse;font-size:12px;}
+.users-table th{padding:7px 12px;text-align:left;background:#f8fafc;font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid #e2e8f0;white-space:nowrap;position:sticky;top:0;z-index:5;}
+.users-table td{padding:7px 12px;border-bottom:1px solid #f8fafc;vertical-align:middle;white-space:nowrap;}
+.users-table tr:hover td{background:#fafbfc;}
+.uid{font-family:monospace;font-size:11px;color:#6366f1;font-weight:700;}
+.num-td{text-align:right;font-variant-numeric:tabular-nums;color:#475569;}
+.u-tag-chip{display:inline-flex;align-items:center;padding:1px 6px;border-radius:100px;font-size:10px;font-weight:600;background:#ede9fe;color:#6d28d9;margin:1px;}
+.u-camp-chip{display:inline-flex;align-items:center;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;color:white;margin:1px;}
+.pagination{padding:10px 16px;border-top:1px solid #e2e8f0;display:flex;align-items:center;gap:8px;background:white;flex-shrink:0;}
+.page-info{font-size:12px;color:#64748b;flex:1;}
+.pg-btn{padding:4px 10px;border:1.5px solid #e2e8f0;background:white;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;color:#64748b;}
+.pg-btn:hover:not(:disabled){border-color:#6366f1;color:#6366f1;}
+.pg-btn:disabled{opacity:.4;cursor:default;}
+.pg-btn.pg-active{background:#6366f1;color:white;border-color:#6366f1;}
+
+/* ── MODAL ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(15,23,42,.45);display:flex;align-items:center;justify-content:center;z-index:1000;}
+.modal-overlay.hidden{display:none;}
+.modal{background:white;border-radius:14px;padding:24px;width:470px;max-width:94vw;max-height:90vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,.22);}
+.modal::-webkit-scrollbar{width:4px;}
+.modal::-webkit-scrollbar-thumb{background:#e2e8f0;border-radius:4px;}
+.modal h2{font-size:17px;font-weight:800;margin-bottom:18px;}
+.fg{margin-bottom:14px;}
+.fg label{display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px;}
+.fg input,.fg select,.fg textarea{width:100%;padding:8px 11px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;outline:none;font-family:inherit;transition:border-color .15s;}
+.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,.1);}
+.fg textarea{resize:vertical;min-height:52px;}
+.fg-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:20px;}
+.btn-cancel{padding:8px 15px;border:1.5px solid #e2e8f0;background:white;border-radius:8px;cursor:pointer;font-size:13px;}
+.btn-save{padding:8px 18px;background:#6366f1;color:white;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:700;}
+.btn-save:hover{background:#4f46e5;}
+.btn-del{padding:8px 14px;background:#fee2e2;color:#dc2626;border:none;border-radius:8px;cursor:pointer;font-size:13px;margin-right:auto;}
+
+/* ── RULES BUILDER ── */
+.rules-sec{border-top:1px solid #f1f5f9;margin-top:16px;padding-top:14px;}
+.rules-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.rules-lbl{font-size:12px;font-weight:700;color:#475569;}
+.rule-row{display:flex;align-items:center;gap:6px;margin-bottom:6px;}
+.r-sel{padding:6px 8px;border:1.5px solid #e2e8f0;border-radius:7px;font-size:12px;font-family:inherit;outline:none;background:white;}
+.r-sel:focus{border-color:#6366f1;}
+.r-val{flex:1;padding:6px 10px;border:1.5px solid #e2e8f0;border-radius:7px;font-size:12px;font-family:inherit;outline:none;}
+.r-val:focus{border-color:#6366f1;}
+.r-rm{background:none;border:none;cursor:pointer;color:#fca5a5;font-size:15px;padding:2px;}
+.r-rm:hover{color:#dc2626;}
+.rules-preview{margin-top:8px;padding:8px 10px;border-radius:7px;font-size:12px;font-weight:600;}
+.rp-match{background:#f0fdf4;color:#059669;}
+.rp-none{background:#fef2f2;color:#dc2626;}
+.rp-empty{background:#f8fafc;color:#94a3b8;}
+.add-rule-btn{padding:4px 10px;border:1.5px dashed #e2e8f0;background:white;border-radius:6px;cursor:pointer;font-size:11px;color:#94a3b8;transition:all .1s;}
+.add-rule-btn:hover{border-color:#6366f1;color:#6366f1;}
+
+/* ── COL MODAL ── */
+.col-modal{width:370px;}
+.col-list{display:flex;flex-direction:column;gap:6px;margin-bottom:12px;}
+.col-item{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;}
+.col-item-name{font-size:13px;font-weight:600;}
+.col-item-key{font-size:11px;color:#94a3b8;font-family:monospace;}
+
+/* ── TOOLTIP ── */
+.tip{position:fixed;background:#1e293b;color:white;padding:8px 11px;border-radius:8px;font-size:11px;line-height:1.5;z-index:9999;pointer-events:none;max-width:220px;box-shadow:0 8px 24px rgba(0,0,0,.25);}
+.tip.hidden{display:none;}
+.hidden{display:none!important;}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-left">
+    <span style="font-size:20px">🎯</span>
+    <h1>Liveops Campaign Planner</h1>
+    <span class="badge badge-beta">BETA</span>
+    <span class="badge badge-saved hidden" id="savedBadge">✓ Saved</span>
+  </div>
+  <div class="header-hint">Drag campaigns onto the calendar · Auto-saved in browser</div>
+</div>
+
+<!-- STATS -->
+<div class="stats-bar" id="statsBar"></div>
+
+<!-- MAIN -->
+<div class="main-layout">
+  <!-- ARSENAL -->
+  <div class="arsenal">
+    <div class="arsenal-hdr">
+      <span class="arsenal-title">Campaign Arsenal</span>
+      <button class="add-btn" onclick="openCampModal()">＋ Add</button>
+    </div>
+    <div class="arsenal-list" id="arsenalList"></div>
+  </div>
+
+  <!-- VIEW AREA -->
+  <div class="view-area">
+    <div class="toolbar">
+      <button class="nav-btn" id="navPrev" onclick="changeMonth(-1)">◀</button>
+      <div class="view-title" id="viewTitle"></div>
+      <button class="nav-btn" id="navNext" onclick="changeMonth(1)">▶</button>
+      <div class="view-tabs">
+        <button class="view-tab active" id="tabCal"   onclick="switchView('calendar')">Calendar</button>
+        <button class="view-tab"        id="tabGantt" onclick="switchView('gantt')">Gantt</button>
+        <button class="view-tab"        id="tabSeg"   onclick="switchView('segments')">🗂 Segments</button>
+        <button class="view-tab"        id="tabUsers" onclick="switchView('users')">👥 Users</button>
+      </div>
+    </div>
+    <div class="scroll-area" id="scrollArea">
+      <div id="mainView"></div>
+    </div>
+  </div>
+</div>
+
+<!-- CAMPAIGN MODAL -->
+<div class="modal-overlay hidden" id="campModal" onclick="ovClick(event,'campModal')">
+  <div class="modal">
+    <h2 id="campModalTitle">Add Campaign</h2>
+    <div class="fg"><label>Campaign Name</label><input type="text" id="fName" placeholder="e.g. VIP Weekend Blitz"></div>
+    <div class="fg"><label>Description</label><textarea id="fDesc" placeholder="What does this campaign do?"></textarea></div>
+    <div class="fg-row">
+      <div class="fg">
+        <label>Display Segment <span style="color:#94a3b8;font-weight:400">(shown on card)</span></label>
+        <select id="fSegment"></select>
+      </div>
+      <div class="fg"><label>Duration (days)</label><input type="number" id="fDur" min="1" max="365" value="7"></div>
+    </div>
+    <div class="fg-row">
+      <div class="fg"><label>Budget / Spend ($)</label><input type="number" id="fSpend" placeholder="10000" min="0"></div>
+      <div class="fg"><label>Colour</label><input type="color" id="fColor" value="#6366f1" style="height:38px;cursor:pointer;"></div>
+    </div>
+
+    <!-- TARGETING RULES -->
+    <div class="rules-sec">
+      <div class="rules-hdr">
+        <span class="rules-lbl">🎯 Targeting Rules <span style="color:#94a3b8;font-weight:400;font-size:11px">— which segments fall into this campaign</span></span>
+        <button class="add-rule-btn" onclick="addRule()">+ Add Rule</button>
+      </div>
+      <div id="rulesList"></div>
+      <div class="rules-preview rp-empty" id="rulesPreview">No rules — uses display segment for reach</div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-del hidden" id="btnDelCamp" onclick="deleteCampaign()">🗑 Delete</button>
+      <button class="btn-cancel" onclick="closeCampModal()">Cancel</button>
+      <button class="btn-save" onclick="saveCampaign()">Save Campaign</button>
+    </div>
+  </div>
+</div>
+
+<!-- COLUMN MODAL -->
+<div class="modal-overlay hidden" id="colModal" onclick="ovClick(event,'colModal')">
+  <div class="modal col-modal">
+    <h2>Manage Columns</h2>
+    <p style="font-size:12px;color:#64748b;margin-bottom:14px;">Numeric attribute columns — use them in targeting rules.</p>
+    <div class="col-list" id="colList"></div>
+    <div style="display:flex;gap:8px;margin-bottom:16px;">
+      <input type="text" id="newColLabel" placeholder="Column name  e.g. Lifetime Spend"
+             style="flex:1;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;outline:none;font-family:inherit;"
+             onkeydown="if(event.key==='Enter')addColumn()">
+      <button class="btn-save" onclick="addColumn()">Add</button>
+    </div>
+    <div class="modal-actions"><button class="btn-cancel" onclick="closeColModal()">Done</button></div>
+  </div>
+</div>
+
+<input type="file" id="csvFileInput" accept=".csv,text/csv" onchange="handleFileInput(this)" style="display:none;">
+<div class="tip hidden" id="tip"></div>
+
+<script>
+// ══════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════
+const LS_KEY = 'liveops_v4';
+
+const DEF_SEGMENTS = [
+  {id:'sg1',name:'VIP Players',    size:5000,  tags:['loyal','whale','high_spender'],  attrs:{lifetime_spend:1500,days_last_deposited:2, days_last_active:1, level:85}},
+  {id:'sg2',name:'New Users',      size:28000, tags:['fresh','low_ltv'],              attrs:{lifetime_spend:12,  days_last_deposited:1, days_last_active:1, level:3}},
+  {id:'sg3',name:'Lapsed Players', size:17000, tags:['churned','at_risk'],            attrs:{lifetime_spend:320, days_last_deposited:45,days_last_active:38,level:32}},
+  {id:'sg4',name:'High Spenders',  size:9000,  tags:['high_spender','engaged'],       attrs:{lifetime_spend:800, days_last_deposited:5, days_last_active:3, level:60}},
+  {id:'sg5',name:'Mid Tier',       size:45000, tags:['engaged','regular'],            attrs:{lifetime_spend:150, days_last_deposited:12,days_last_active:8, level:25}},
+  {id:'sg6',name:'All Users',      size:120000,tags:['all'],                          attrs:{lifetime_spend:280, days_last_deposited:8, days_last_active:5, level:28}},
+];
+
+const DEF_COLS = [
+  {key:'lifetime_spend',      label:'Lifetime Spend ($)'},
+  {key:'days_last_deposited', label:'Days Last Deposited'},
+  {key:'days_last_active',    label:'Days Last Active'},
+  {key:'level',               label:'Player Level'},
+];
+
+const DEF_CAMPS = [
+  {id:'c1',name:'VIP Weekend Bonus', desc:'Exclusive offer for top players',    segment:'VIP Players',    spend:8000,  dur:3,  color:'#7c3aed',rules:[{field:'tags',op:'contains',value:'whale'},{field:'lifetime_spend',op:'>=',value:'800'}]},
+  {id:'c2',name:'New User Welcome',  desc:'Onboarding push for fresh signups',  segment:'New Users',      spend:15000, dur:14, color:'#0891b2',rules:[{field:'tags',op:'contains',value:'fresh'}]},
+  {id:'c3',name:'Win Back Lapsed',   desc:'Re-engage inactive players',         segment:'Lapsed Players', spend:10000, dur:7,  color:'#dc2626',rules:[{field:'days_last_active',op:'>=',value:'30'}]},
+  {id:'c4',name:'Summer Mega Event', desc:'Seasonal event for all players',     segment:'All Users',      spend:35000, dur:7,  color:'#059669',rules:[]},
+  {id:'c5',name:'Whale Exclusive',   desc:'Ultra-high value for top spenders',  segment:'High Spenders',  spend:20000, dur:5,  color:'#d97706',rules:[{field:'lifetime_spend',op:'>=',value:'700'}]},
+  {id:'c6',name:'Mid Tier Booster',  desc:'Retention push for mid-tier',        segment:'Mid Tier',       spend:12000, dur:7,  color:'#e11d48',rules:[{field:'lifetime_spend',op:'>=',value:'100'},{field:'lifetime_spend',op:'<',value:'700'}]},
+];
+
+let S = {
+  campaigns:  JSON.parse(JSON.stringify(DEF_CAMPS)),
+  placements: [],
+  segments:   JSON.parse(JSON.stringify(DEF_SEGMENTS)),
+  glossCols:  JSON.parse(JSON.stringify(DEF_COLS)),
+  // user CSV import
+  users:      [],
+  userCols:   [],
+  lastImport: null,
+  // view state
+  year:  new Date().getFullYear(),
+  month: new Date().getMonth(),
+  view:  'calendar',
+  editingCamp: null,
+};
+
+let UP = {search:'', page:0, pageSize:50};
+let editRules = [];
+
+// ══════════════════════════════════════════════
+//  PERSISTENCE
+// ══════════════════════════════════════════════
+function save(){
+  try{
+    localStorage.setItem(LS_KEY,JSON.stringify({
+      campaigns:S.campaigns, placements:S.placements,
+      segments:S.segments,   glossCols:S.glossCols,
+      users:S.users,         userCols:S.userCols, lastImport:S.lastImport,
+    }));
+    const b=document.getElementById('savedBadge');
+    b.classList.remove('hidden');
+    clearTimeout(b._t); b._t=setTimeout(()=>b.classList.add('hidden'),1800);
+  }catch(e){console.warn('Save failed',e);}
+}
+
+function load(){
+  try{
+    const raw=localStorage.getItem(LS_KEY); if(!raw)return;
+    const d=JSON.parse(raw);
+    if(d.campaigns)  S.campaigns  = d.campaigns;
+    if(d.placements) S.placements = d.placements;
+    if(d.segments)   S.segments   = d.segments;
+    if(d.glossCols)  S.glossCols  = d.glossCols;
+    if(d.users)      S.users      = d.users;
+    if(d.userCols)   S.userCols   = d.userCols;
+    if(d.lastImport) S.lastImport = d.lastImport;
+  }catch(e){console.warn('Load failed',e);}
+}
+
+// ══════════════════════════════════════════════
+//  UTILS
+// ══════════════════════════════════════════════
+const pad  = n=>String(n).padStart(2,'0');
+const fmtD = (y,m,d)=>`${y}-${pad(m+1)}-${pad(d)}`;
+function parseD(s){const[y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d);}
+function addDays(s,n){const d=parseD(s);d.setDate(d.getDate()+n);return fmtD(d.getFullYear(),d.getMonth(),d.getDate());}
+function dim(y,m){return new Date(y,m+1,0).getDate();}
+function firstDOW(y,m){return new Date(y,m,1).getDay();}
+function todayStr(){const t=new Date();return fmtD(t.getFullYear(),t.getMonth(),t.getDate());}
+function fmtMoney(n){if(n>=1e6)return'$'+(n/1e6).toFixed(1)+'M';if(n>=1000)return'$'+(n/1000).toFixed(0)+'K';return'$'+n;}
+function fmtNum(n){if(n>=1e6)return(n/1e6).toFixed(1)+'M';if(n>=1000)return(n/1000).toFixed(0)+'K';return String(n);}
+function uid(){return '_'+Math.random().toString(36).slice(2,10);}
+function getCamp(id){return S.campaigns.find(c=>c.id===id);}
+function getSeg(id){return S.segments.find(s=>s.id===id);}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function slug(s){return s.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');}
+
+// ══════════════════════════════════════════════
+//  SEGMENT MATCHING ENGINE
+// ══════════════════════════════════════════════
+function evalSegRule(seg, rule){
+  const{field,op,value}=rule;
+  if(!value&&value!==0) return false;
+  if(field==='tags'){
+    const v=String(value).toLowerCase().trim();
+    const has=seg.tags.map(t=>t.toLowerCase()).includes(v);
+    return op==='contains'?has:!has;
+  }
+  const sv=parseFloat(seg.attrs[field]);
+  const rv=parseFloat(value);
+  if(isNaN(sv)||isNaN(rv)) return false;
+  if(op==='=') return sv===rv;
+  if(op==='!=')return sv!==rv;
+  if(op==='>') return sv>rv;
+  if(op==='>=')return sv>=rv;
+  if(op==='<') return sv<rv;
+  if(op==='<=')return sv<=rv;
+  return false;
+}
+
+function matchSegments(camp){
+  const rules=(camp.rules||[]).filter(r=>r.value!==''&&r.value!==undefined);
+  if(!rules.length) return S.segments.filter(s=>s.name===camp.segment);
+  return S.segments.filter(s=>rules.every(r=>evalSegRule(s,r)));
+}
+
+function segReach(camp){
+  return matchSegments(camp).reduce((sum,s)=>sum+s.size,0);
+}
+
+// ══════════════════════════════════════════════
+//  USER (CSV) MATCHING ENGINE
+// ══════════════════════════════════════════════
+function evalUserRule(user, rule){
+  const{field,op,value}=rule;
+  if(!value&&value!==0) return false;
+  if(field==='tags'){
+    const v=String(value).toLowerCase().trim();
+    const has=(user.tags||[]).map(t=>t.toLowerCase()).includes(v);
+    return op==='contains'?has:!has;
+  }
+  const uv=parseFloat(user.attrs[field]);
+  const rv=parseFloat(value);
+  if(isNaN(uv)||isNaN(rv)) return false;
+  if(op==='=') return uv===rv;
+  if(op==='!=')return uv!==rv;
+  if(op==='>') return uv>rv;
+  if(op==='>=')return uv>=rv;
+  if(op==='<') return uv<rv;
+  if(op==='<=')return uv<=rv;
+  return false;
+}
+
+function userQualifyingCamps(user){
+  return S.campaigns.filter(c=>{
+    const rules=(c.rules||[]).filter(r=>r.value!==''&&r.value!==undefined);
+    if(!rules.length) return false;
+    return rules.every(r=>evalUserRule(user,r));
+  });
+}
+
+// ══════════════════════════════════════════════
+//  PLACEMENTS
+// ══════════════════════════════════════════════
+function pEnd(p){const c=getCamp(p.campaignId);if(!c)return p.startDate;return addDays(p.startDate,c.dur-1);}
+function placementsInMonth(y,m){
+  const ms=fmtD(y,m,1),me=fmtD(y,m,dim(y,m));
+  return S.placements.filter(p=>{const c=getCamp(p.campaignId);if(!c)return false;return p.startDate<=me&&pEnd(p)>=ms;});
+}
+function placementsInWeek(week){
+  const ws=week[0].date,we=week[6].date;
+  return S.placements.filter(p=>{const c=getCamp(p.campaignId);if(!c)return false;return p.startDate<=we&&pEnd(p)>=ws;});
+}
+
+// ══════════════════════════════════════════════
+//  CONFLICTS (segment-based)
+// ══════════════════════════════════════════════
+function conflictSet(){
+  const active=placementsInMonth(S.year,S.month),out=new Set();
+  for(let i=0;i<active.length;i++){
+    for(let j=i+1;j<active.length;j++){
+      const pi=active[i],pj=active[j];
+      const ci=getCamp(pi.campaignId),cj=getCamp(pj.campaignId);
+      if(!ci||!cj)continue;
+      const ie=pEnd(pi),je=pEnd(pj);
+      if(pi.startDate>je||ie<pj.startDate)continue;
+      const segsI=new Set(matchSegments(ci).map(s=>s.id));
+      if(!matchSegments(cj).some(s=>segsI.has(s.id)))continue;
+      out.add(pi.id);out.add(pj.id);
+    }
+  }
+  return out;
+}
+
+// ══════════════════════════════════════════════
+//  STATS
+// ══════════════════════════════════════════════
+function computeStats(){
+  const active=placementsInMonth(S.year,S.month);
+  const totalSpend=active.reduce((s,p)=>{const c=getCamp(p.campaignId);return s+(c?c.spend:0);},0);
+  const matchedSegIds=new Set();
+  active.forEach(p=>{const c=getCamp(p.campaignId);if(!c)return;matchSegments(c).forEach(s=>matchedSegIds.add(s.id));});
+  const totalReach=[...matchedSegIds].reduce((s,sid)=>{const seg=getSeg(sid);return s+(seg?seg.size:0);},0);
+  const conflicts=conflictSet().size/2;
+  return{active:active.length,totalSpend,totalReach,conflicts:Math.ceil(conflicts)};
+}
+
+function renderStats(){
+  const{active,totalSpend,totalReach,conflicts}=computeStats();
+  const mn=new Date(S.year,S.month,1).toLocaleString('default',{month:'long',year:'numeric'});
+  document.getElementById('statsBar').innerHTML=`
+    <div class="stat"><div class="stat-label">Campaigns placed</div><div class="stat-value sv-indigo">${active}</div></div>
+    <div class="stat-div"></div>
+    <div class="stat"><div class="stat-label">Total Spend · ${mn}</div><div class="stat-value sv-green">${fmtMoney(totalSpend)}</div></div>
+    <div class="stat-div"></div>
+    <div class="stat"><div class="stat-label">Segment Reach</div><div class="stat-value sv-indigo">${fmtNum(totalReach)} users</div></div>
+    <div class="stat-div"></div>
+    <div class="stat"><div class="stat-label">Conflicts</div><div class="stat-value ${conflicts>0?'sv-red':''}">${conflicts>0?'⚠ '+conflicts+' conflict'+(conflicts>1?'s':''):'✓ None'}</div></div>
+  `;
+}
+
+// ══════════════════════════════════════════════
+//  ARSENAL
+// ══════════════════════════════════════════════
+function renderArsenal(){
+  const el=document.getElementById('arsenalList');
+  if(!S.campaigns.length){el.innerHTML='<div style="padding:32px 16px;text-align:center;color:#94a3b8;font-size:12px;"><div style="font-size:28px;margin-bottom:8px;">🎯</div>No campaigns yet.<br>Click <b>+ Add</b>.</div>';return;}
+  el.innerHTML=S.campaigns.map(c=>{
+    const hasRules=(c.rules||[]).filter(r=>r.value!==''&&r.value!==undefined).length>0;
+    const reach=segReach(c);
+    return `<div class="camp-card" draggable="true" data-cid="${c.id}"
+         style="border-color:${c.color}22;background:${c.color}09;"
+         ondragstart="onDS(event,'${c.id}')" ondragend="onDE()">
+      <div class="card-top">
+        <div class="card-dot" style="background:${c.color}"></div>
+        <div class="card-name">${esc(c.name)}${hasRules?'<span class="rules-pill">rules</span>':''}</div>
+        <button class="card-act card-edit" onclick="openCampModal('${c.id}')">✏️</button>
+        <button class="card-act card-del"  onclick="delFromArsenal(event,'${c.id}')">✕</button>
+      </div>
+      <div><span class="card-seg" style="background:${c.color}18;color:${c.color};">${esc(c.segment)}</span></div>
+      <div class="card-bottom">
+        <span class="card-spend">${fmtMoney(c.spend)}</span>
+        <span class="card-dur">${c.dur}d</span>
+        <span class="card-reach">${fmtNum(reach)} users</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════
+//  CALENDAR
+// ══════════════════════════════════════════════
+function buildWeeks(y,m){
+  const d=dim(y,m),first=(firstDOW(y,m)+6)%7;
+  const weeks=[],pm=m===0?11:m-1,py=m===0?y-1:y,dpm=dim(py,pm);
+  let week=[];
+  for(let i=first-1;i>=0;i--)week.push({date:fmtD(py,pm,dpm-i),out:true});
+  for(let dd=1;dd<=d;dd++){
+    week.push({date:fmtD(y,m,dd),out:false});
+    if(week.length===7){weeks.push(week);week=[];}
+  }
+  if(week.length){
+    const nm=m===11?0:m+1,ny=m===11?y+1:y;let nd=1;
+    while(week.length<7)week.push({date:fmtD(ny,nm,nd++),out:true});
+    weeks.push(week);
+  }
+  return weeks;
+}
+
+function allocSlots(pls,week){
+  const ws=week[0].date,we=week[6].date,slots=[];
+  pls.forEach(p=>{
+    const pe=pEnd(p),cs=p.startDate<ws?ws:p.startDate,ce=pe>we?we:pe;
+    let placed=false;
+    for(let i=0;i<slots.length;i++){
+      const clash=slots[i].some(e=>{const epe=pEnd(e),ecs=e.startDate<ws?ws:e.startDate,ece=epe>we?we:epe;return cs<=ece&&ce>=ecs;});
+      if(!clash){slots[i].push(p);placed=true;break;}
+    }
+    if(!placed)slots.push([p]);
+  });
+  return slots;
+}
+
+function renderCalendar(){
+  const{year,month}=S,conflicts=conflictSet(),weeks=buildWeeks(year,month),today=todayStr();
+  let html='<div class="cal-month"><div class="cal-dow-row">'
+    +['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d=>`<div class="cal-dow">${d}</div>`).join('')+'</div>';
+  weeks.forEach(week=>{
+    const pls=placementsInWeek(week),slots=allocSlots(pls,week);
+    html+='<div class="cal-week"><div class="cal-days-row">';
+    week.forEach(({date,out})=>{
+      const dn=parseInt(date.split('-')[2]);
+      const cls=[out?'other-month':'',date===today?'today':''].filter(Boolean).join(' ');
+      html+=`<div class="cal-day ${cls}" data-date="${date}"
+                 ondragover="onDO(event)" ondragleave="onDL(event)"
+                 ondrop="onDP(event,'${date}')"><span class="cal-dn">${dn}</span></div>`;
+    });
+    html+='</div>';
+    if(slots.length){
+      html+='<div class="events-sec">';
+      slots.forEach(slot=>{html+=buildEvRow(slot,week,conflicts);});
+      html+='</div>';
+    }else html+='<div style="height:5px"></div>';
+    html+='</div>';
+  });
+  document.getElementById('mainView').innerHTML=html+'</div>';
+}
+
+function buildEvRow(slotPls,week,conflicts){
+  const ws=week[0].date,we=week[6].date,cm=new Array(7).fill(null);
+  slotPls.forEach(p=>{
+    const c=getCamp(p.campaignId);if(!c)return;
+    const pe=pEnd(p);let si=-1,ei=-1;
+    week.forEach(({date},i)=>{if(date>=p.startDate&&date<=pe){if(si===-1)si=i;ei=i;}});
+    if(si===-1)return;
+    const cL=p.startDate<ws,cR=pe>we;
+    let bc='';if(cL&&cR)bc='cb';else if(cL)bc='cl';else if(cR)bc='cr';
+    cm[si]={p,span:ei-si+1,bc,conf:conflicts.has(p.id)?'conflict':'',c};
+    for(let i=si+1;i<=ei;i++)cm[i]='X';
+  });
+  let html='<div class="ev-grid">',col=0;
+  while(col<7){
+    const cell=cm[col];
+    if(!cell){html+=`<div style="grid-column:${col+1}"></div>`;col++;}
+    else if(cell==='X'){col++;}
+    else{
+      const{p,span,bc,conf,c}=cell;
+      html+=`<div class="ev-bar ${bc} ${conf}" style="grid-column:${col+1}/span ${span};background:${c.color};"
+                  onmouseenter="showTip(event,'${p.id}')" onmouseleave="hideTip()">
+               <span class="bar-label">${esc(c.name)}</span>
+               <button class="bar-x" onclick="removePl('${p.id}')">✕</button>
+             </div>`;
+      col+=span;
+    }
+  }
+  return html+'</div>';
+}
+
+// ══════════════════════════════════════════════
+//  GANTT
+// ══════════════════════════════════════════════
+function renderGantt(){
+  const{year,month}=S,d=dim(year,month),ms=fmtD(year,month,1),me=fmtD(year,month,d);
+  const today=todayStr(),active=placementsInMonth(year,month);
+  const DW=34,LW=200;
+  let dayHdr='';
+  for(let dd=1;dd<=d;dd++){
+    const ds=fmtD(year,month,dd);
+    dayHdr+=`<div class="gantt-day-h ${ds===today?'today-col':''}" style="width:${DW}px;">${dd}</div>`;
+  }
+  const todayOff=today>=ms&&today<=me?(parseInt(today.split('-')[2])-1)*DW+DW/2:-1;
+  let rows='';
+  if(!active.length){
+    rows=`<div class="gantt-empty">📅 No campaigns placed this month.<br>Switch to <b>Calendar</b> and drag some in!</div>`;
+  } else {
+    active.forEach(p=>{
+      const c=getCamp(p.campaignId);if(!c)return;
+      const pe=pEnd(p),cs=p.startDate<ms?ms:p.startDate,ce=pe>me?me:pe;
+      const sd=parseInt(cs.split('-')[2])-1,ed=parseInt(ce.split('-')[2])-1;
+      const segs=matchSegments(c).map(s=>s.name).join(', ')||c.segment;
+      const reach=segReach(c);
+      rows+=`<div class="gantt-row">
+        <div class="gantt-row-lbl" style="width:${LW}px;">
+          <div class="gantt-camp-name" style="color:${c.color};">${esc(c.name)}</div>
+          <div class="gantt-camp-meta">${esc(segs)} · ${fmtNum(reach)} users · ${fmtMoney(c.spend)}</div>
+        </div>
+        <div class="gantt-bars" style="min-width:${d*DW}px;">
+          ${todayOff>=0?`<div class="gantt-today" style="left:${todayOff}px;"></div>`:''}
+          <div class="gantt-bar" style="left:${sd*DW}px;width:${(ed-sd+1)*DW-2}px;background:${c.color};"
+               onmouseenter="showTip(event,'${p.id}')" onmouseleave="hideTip()">${esc(c.name)}</div>
+        </div>
+      </div>`;
+    });
+  }
+  document.getElementById('mainView').innerHTML=`
+    <div class="gantt-wrap">
+      <div class="gantt-hdr">
+        <div class="gantt-lbl-col" style="width:${LW}px;"><span>Campaign</span></div>
+        <div class="gantt-days-hdr">${dayHdr}</div>
+      </div>${rows}
+    </div>`;
+}
+
+// ══════════════════════════════════════════════
+//  SEGMENTS GLOSSARY
+// ══════════════════════════════════════════════
+function renderSegments(){
+  const active=placementsInMonth(S.year,S.month);
+  // Which campaigns (placed this month) target each segment?
+  const segToCamps={};
+  active.forEach(p=>{
+    const c=getCamp(p.campaignId);if(!c)return;
+    matchSegments(c).forEach(s=>{
+      if(!segToCamps[s.id])segToCamps[s.id]=[];
+      if(!segToCamps[s.id].find(x=>x.id===c.id))segToCamps[s.id].push(c);
+    });
+  });
+  // Campaign history (total placements per segment all time)
+  const hist={};
+  S.placements.forEach(p=>{
+    const c=getCamp(p.campaignId);if(!c)return;
+    matchSegments(c).forEach(s=>{hist[s.id]=(hist[s.id]||0)+1;});
+  });
+
+  const thCols=S.glossCols.map(col=>`
+    <th><div class="th-in">${esc(col.label)}
+      <button class="col-del-btn" onclick="removeGlossCol('${col.key}')" title="Remove">✕</button>
+    </div></th>`).join('');
+
+  const rows=S.segments.map(seg=>`<tr>
+    <td><input class="g-input" value="${esc(seg.name)}" onchange="updSegName('${seg.id}',this.value)"></td>
+    <td><input class="g-input num" type="number" value="${seg.size}" onchange="updSegSize('${seg.id}',this.value)"></td>
+    <td><div class="tags-cell">
+      ${seg.tags.map((t,i)=>`<span class="tag-chip">${esc(t)}<button class="tag-rm" onclick="removeTag('${seg.id}',${i})">✕</button></span>`).join('')}
+      <input class="tag-add" placeholder="+ tag" onkeydown="addTagKey(event,'${seg.id}',this)" onfocusout="addTagBlur(event,'${seg.id}',this)">
+    </div></td>
+    ${S.glossCols.map(col=>`<td><input class="g-input num" type="number" value="${seg.attrs[col.key]??''}" onchange="updSegAttr('${seg.id}','${col.key}',this.value)"></td>`).join('')}
+    <td style="text-align:center;color:#94a3b8;">${hist[seg.id]||0}</td>
+    <td><div class="matched-camps">
+      ${(segToCamps[seg.id]||[]).length
+        ? (segToCamps[seg.id]||[]).map(c=>`<span class="mc-chip" style="background:${c.color};">${esc(c.name)}</span>`).join('')
+        : '<span class="mc-none">—</span>'}
+    </div></td>
+    <td><button class="row-del-btn" onclick="deleteSeg('${seg.id}')">✕</button></td>
+  </tr>`).join('');
+
+  document.getElementById('mainView').innerHTML=`
+    <div class="gloss-wrap">
+      <div class="gloss-toolbar">
+        <span class="gloss-title">🗂 User Segments · ${S.segments.length} defined</span>
+        <div class="gloss-actions">
+          <button class="btn-outline" onclick="openColModal()">⚙ Manage Columns</button>
+          <button class="add-btn" onclick="addSegment()">＋ Add Segment</button>
+        </div>
+      </div>
+      <div style="overflow:auto;max-height:calc(100vh - 220px);">
+        <table class="gloss-table">
+          <thead><tr>
+            <th>Segment Name</th><th>Users</th><th>Tags</th>
+            ${thCols}
+            <th>History</th><th>Active Campaigns (this month)</th><th></th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+// segment mutations
+function addSegment(){
+  const attrs={};S.glossCols.forEach(c=>{attrs[c.key]=0;});
+  S.segments.push({id:uid(),name:'New Segment',size:1000,tags:[],attrs});
+  save();renderSegments();
+}
+function updSegName(id,v){const s=getSeg(id);if(s){s.name=v.trim();save();renderArsenal();renderStats();}}
+function updSegSize(id,v){const s=getSeg(id);if(s){s.size=Math.max(0,parseInt(v)||0);save();renderArsenal();renderStats();}}
+function updSegAttr(id,key,v){const s=getSeg(id);if(s){s.attrs[key]=parseFloat(v)||0;save();}}
+function addTagKey(e,id,inp){
+  const trigger=e.key==='Enter'||e.key===','||e.key===' ';if(!trigger)return;
+  const tag=inp.value.trim().replace(/,$/,'').toLowerCase();
+  if(!tag){e.preventDefault();return;}
+  const s=getSeg(id);if(!s)return;
+  if(!s.tags.includes(tag))s.tags.push(tag);
+  inp.value='';save();renderSegments();e.preventDefault();
+}
+function addTagBlur(e,id,inp){
+  const tag=inp.value.trim().replace(/,$/,'').toLowerCase();if(!tag)return;
+  const s=getSeg(id);if(!s)return;
+  if(!s.tags.includes(tag))s.tags.push(tag);
+  inp.value='';save();renderSegments();
+}
+function removeTag(id,idx){const s=getSeg(id);if(!s)return;s.tags.splice(idx,1);save();renderSegments();}
+function deleteSeg(id){
+  const s=getSeg(id);if(!s)return;
+  if(!confirm(`Remove segment "${s.name}"?`))return;
+  S.segments=S.segments.filter(x=>x.id!==id);
+  save();renderSegments();renderArsenal();renderStats();
+}
+
+// column modal
+function openColModal(){renderColList();document.getElementById('newColLabel').value='';document.getElementById('colModal').classList.remove('hidden');}
+function closeColModal(){document.getElementById('colModal').classList.add('hidden');renderSegments();}
+function renderColList(){
+  document.getElementById('colList').innerHTML=S.glossCols.map(c=>`
+    <div class="col-item">
+      <div><div class="col-item-name">${esc(c.label)}</div><div class="col-item-key">${c.key}</div></div>
+      <button class="col-del-btn" style="font-size:14px;" onclick="removeGlossCol('${c.key}');renderColList();">✕</button>
+    </div>`).join('')||'<div style="color:#94a3b8;font-size:12px;padding:8px 0;">No columns yet.</div>';
+}
+function addColumn(){
+  const label=document.getElementById('newColLabel').value.trim();if(!label){alert('Enter a column name.');return;}
+  const key=slug(label)||'col_'+uid();
+  if(S.glossCols.find(c=>c.key===key)){alert('Column already exists.');return;}
+  S.glossCols.push({key,label});
+  S.segments.forEach(s=>{if(s.attrs[key]===undefined)s.attrs[key]=0;});
+  document.getElementById('newColLabel').value='';
+  save();renderColList();
+}
+function removeGlossCol(key){
+  S.glossCols=S.glossCols.filter(c=>c.key!==key);
+  S.campaigns.forEach(c=>{if(c.rules)c.rules=c.rules.filter(r=>r.field!==key);});
+  save();renderColList();
+}
+
+// ══════════════════════════════════════════════
+//  USERS / CSV TAB
+// ══════════════════════════════════════════════
+function parseCSVRow(line){
+  const res=[];let q=false,cur='';
+  for(let i=0;i<line.length;i++){
+    const c=line[i];
+    if(c==='"'){if(q&&line[i+1]==='"'){cur+='"';i++;}else q=!q;}
+    else if(c===','&&!q){res.push(cur.trim());cur='';}
+    else cur+=c;
+  }
+  res.push(cur.trim());return res;
+}
+
+function importCSV(text){
+  const lines=text.trim().split(/\r?\n/).filter(l=>l.trim());
+  if(lines.length<2){alert('CSV must have a header row and at least one data row.');return;}
+  const headers=parseCSVRow(lines[0]);
+  const idIdx=Math.max(0,headers.findIndex(h=>/^(user_?id|id|player_?id|uid|customer_?id|userid)$/i.test(h.trim())));
+  const tagsIdx=headers.findIndex(h=>/^tags?$/i.test(h.trim()));
+  const cols=headers.map((h,i)=>({key:slug(h)||'col'+i,label:h.trim(),idx:i})).filter((_,i)=>i!==idIdx&&i!==tagsIdx);
+  const numCount={};cols.forEach(c=>{numCount[c.key]=0;});
+  const rawUsers=[];
+  for(let i=1;i<lines.length;i++){
+    const cells=parseCSVRow(lines[i]);
+    const id=(cells[idIdx]||'').trim();if(!id)continue;
+    const tagsRaw=tagsIdx>=0?(cells[tagsIdx]||''):'';
+    const tags=tagsRaw?tagsRaw.split(',').map(t=>t.trim().toLowerCase()).filter(Boolean):[];
+    const attrs={};
+    cols.forEach(c=>{
+      const v=(cells[c.idx]||'').trim();
+      const n=parseFloat(v);
+      if(!isNaN(n)&&v!==''){attrs[c.key]=n;numCount[c.key]=(numCount[c.key]||0)+1;}
+      else attrs[c.key]=v;
+    });
+    rawUsers.push({id,tags,attrs});
+  }
+  const thr=rawUsers.length*0.8;
+  const finalCols=cols.map(c=>({...c,type:numCount[c.key]>=thr?'number':'text'}));
+  S.users=rawUsers;S.userCols=finalCols;S.lastImport=new Date().toISOString();
+  UP.page=0;UP.search='';
+  save();renderUsers();
+  alert(`✓ Imported ${rawUsers.length.toLocaleString()} users with ${finalCols.length} columns.`);
+}
+
+function handleFileInput(inp){
+  const f=inp.files[0];if(!f)return;
+  new FileReader().readAsText(f);
+  const r=new FileReader();
+  r.onload=e=>importCSV(e.target.result);
+  r.readAsText(f);
+  inp.value='';
+}
+
+function handleCSVDrop(e,zoneId){
+  e.preventDefault();document.getElementById(zoneId).classList.remove('dz-over');
+  const f=e.dataTransfer.files[0];if(!f)return;
+  if(!f.name.endsWith('.csv')&&f.type!=='text/csv'){alert('Please drop a .csv file.');return;}
+  const r=new FileReader();r.onload=ev=>importCSV(ev.target.result);r.readAsText(f);
+}
+
+function filterUsers(){
+  const q=UP.search.toLowerCase().trim();if(!q)return S.users;
+  return S.users.filter(u=>u.id.toLowerCase().includes(q)||u.tags.some(t=>t.includes(q))||Object.values(u.attrs).some(v=>String(v).toLowerCase().includes(q)));
+}
+
+function renderUsers(){
+  if(!S.users.length){renderUploadZone();return;}
+  const all=filterUsers(),total=all.length,pages=Math.max(1,Math.ceil(total/UP.pageSize));
+  UP.page=Math.min(UP.page,pages-1);
+  const slice=all.slice(UP.page*UP.pageSize,(UP.page+1)*UP.pageSize);
+  const importDate=S.lastImport?new Date(S.lastImport).toLocaleString():'—';
+  const numCols=S.userCols.filter(c=>c.type==='number');
+  const txtCols=S.userCols.filter(c=>c.type==='text');
+  const thCols=[...numCols,...txtCols].map(c=>`<th>${esc(c.label)}</th>`).join('');
+  const rows=slice.map(u=>{
+    const qCamps=userQualifyingCamps(u);
+    const campHtml=qCamps.length?qCamps.map(c=>`<span class="u-camp-chip" style="background:${c.color};">${esc(c.name)}</span>`).join(''):'<span style="color:#cbd5e1;font-size:11px;">—</span>';
+    const tagHtml=u.tags.map(t=>`<span class="u-tag-chip">${esc(t)}</span>`).join('');
+    const numCells=numCols.map(c=>`<td class="num-td">${u.attrs[c.key]??'—'}</td>`).join('');
+    const txtCells=txtCols.map(c=>`<td>${esc(u.attrs[c.key]??'')}</td>`).join('');
+    return `<tr><td class="uid">${esc(u.id)}</td>${numCells}${txtCells}<td>${tagHtml}</td><td>${campHtml}</td></tr>`;
+  }).join('');
+  const s=UP.page*UP.pageSize+1,e2=Math.min((UP.page+1)*UP.pageSize,total);
+  // page buttons
+  const pgBtns=(()=>{
+    const cur=UP.page,ps=new Set([0,pages-1,cur-1,cur,cur+1].filter(p=>p>=0&&p<pages));
+    let prev=-1,h='';
+    [...ps].sort((a,b)=>a-b).forEach(p=>{
+      if(prev>=0&&p>prev+1)h+=`<span style="color:#94a3b8;font-size:12px;padding:0 4px;">…</span>`;
+      h+=`<button class="pg-btn ${p===cur?'pg-active':''}" onclick="UP.page=${p};renderUsers();">${p+1}</button>`;
+      prev=p;
+    });
+    return h;
+  })();
+  document.getElementById('mainView').innerHTML=`
+    <div class="users-wrap" style="height:calc(100vh - 206px);">
+      <div class="users-toolbar">
+        <span class="users-info"><b>${S.users.length.toLocaleString()}</b> users imported · Last updated: ${importDate}</span>
+        <input class="search-inp" placeholder="🔍 Search user ID, tag, value…" value="${esc(UP.search)}" oninput="UP.search=this.value;UP.page=0;renderUsers();">
+        <button class="btn-outline" onclick="document.getElementById('csvFileInput').click()">↑ Update CSV</button>
+      </div>
+      <div class="users-table-wrap">
+        <table class="users-table">
+          <thead><tr><th>User ID</th>${thCols}<th>Tags</th><th>Campaign Tags (qualifies today)</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+      <div class="pagination">
+        <span class="page-info">Showing ${s}–${e2} of ${total.toLocaleString()}${UP.search?' (filtered)':''}</span>
+        <button class="pg-btn" onclick="UP.page=0;renderUsers();" ${UP.page===0?'disabled':''}>«</button>
+        <button class="pg-btn" onclick="UP.page--;renderUsers();" ${UP.page===0?'disabled':''}>‹</button>
+        ${pgBtns}
+        <button class="pg-btn" onclick="UP.page++;renderUsers();" ${UP.page>=pages-1?'disabled':''}>›</button>
+        <button class="pg-btn" onclick="UP.page=${pages-1};renderUsers();" ${UP.page>=pages-1?'disabled':''}>»</button>
+      </div>
+    </div>`;
+}
+
+function renderUploadZone(){
+  document.getElementById('mainView').innerHTML=`
+    <div class="upload-zone" id="uz"
+         onclick="document.getElementById('csvFileInput').click()"
+         ondragover="event.preventDefault();this.classList.add('dz-over')"
+         ondragleave="this.classList.remove('dz-over')"
+         ondrop="handleCSVDrop(event,'uz')">
+      <div class="upload-icon">📂</div>
+      <div class="upload-title">Import your user data (optional)</div>
+      <div class="upload-hint">
+        Drag & drop a CSV file here, or click to browse.<br>
+        The <b>Campaign Tags</b> column will auto-compute which campaigns each user qualifies for,<br>
+        based on the targeting rules you define on each campaign.
+      </div>
+      <div class="upload-example">user_id, days_last_deposited, days_last_active, product_preference, lifetime_spend, tags<br>
+USR001, 3, 1, Sports, 1500, "whale,loyal"<br>
+USR002, 45, 30, Casino, 320, "churned,at_risk"<br>
+USR003, 1, 1, Poker, 12, "fresh"</div>
+    </div>`;
+}
+
+// ══════════════════════════════════════════════
+//  DRAG & DROP
+// ══════════════════════════════════════════════
+function onDS(e,cid){S.dragging=cid;e.dataTransfer.setData('cid',cid);e.dataTransfer.effectAllowed='copy';setTimeout(()=>document.querySelectorAll(`.camp-card[data-cid="${cid}"]`).forEach(el=>el.classList.add('dragging')),0);}
+function onDE(){S.dragging=null;document.querySelectorAll('.camp-card').forEach(el=>el.classList.remove('dragging'));}
+function onDO(e){e.preventDefault();e.dataTransfer.dropEffect='copy';e.currentTarget.classList.add('drop-over');}
+function onDL(e){e.currentTarget.classList.remove('drop-over');}
+function onDP(e,ds){e.preventDefault();e.currentTarget.classList.remove('drop-over');const cid=e.dataTransfer.getData('cid');if(!cid)return;S.placements.push({id:uid(),campaignId:cid,startDate:ds});save();render();}
+function removePl(pid){S.placements=S.placements.filter(p=>p.id!==pid);save();render();}
+
+// ══════════════════════════════════════════════
+//  TOOLTIP
+// ══════════════════════════════════════════════
+function showTip(e,pid){
+  const p=S.placements.find(x=>x.id===pid);if(!p)return;
+  const c=getCamp(p.campaignId);if(!c)return;
+  const pe=pEnd(p),segs=matchSegments(c),reach=segs.reduce((s,x)=>s+x.size,0);
+  const segNames=segs.map(s=>s.name).join(', ')||c.segment;
+  const tip=document.getElementById('tip');
+  tip.innerHTML=`
+    <div style="font-weight:800;margin-bottom:3px;">${esc(c.name)}</div>
+    <div style="color:#94a3b8;font-size:10px;">🎯 ${esc(segNames)}</div>
+    <div style="color:#94a3b8;font-size:10px;">${p.startDate} → ${pe} (${c.dur}d)</div>
+    <div style="color:#34d399;font-weight:700;margin-top:3px;">${fmtMoney(c.spend)} · ${fmtNum(reach)} users</div>
+    ${c.desc?`<div style="color:#94a3b8;font-size:10px;margin-top:3px;border-top:1px solid #334155;padding-top:3px;">${esc(c.desc)}</div>`:''}`;
+  tip.classList.remove('hidden');
+  tip.style.left=(e.clientX+14)+'px';
+  tip.style.top=(e.clientY-12)+'px';
+}
+function hideTip(){document.getElementById('tip').classList.add('hidden');}
+
+// ══════════════════════════════════════════════
+//  CAMPAIGN MODAL + RULES
+// ══════════════════════════════════════════════
+function openCampModal(cid=null){
+  S.editingCamp=cid;
+  // Segment dropdown from S.segments
+  document.getElementById('fSegment').innerHTML=S.segments.map(s=>`<option value="${esc(s.name)}">${esc(s.name)} (${fmtNum(s.size)} users)</option>`).join('');
+  if(cid){
+    const c=getCamp(cid);
+    document.getElementById('campModalTitle').textContent='Edit Campaign';
+    document.getElementById('fName').value=c.name;
+    document.getElementById('fDesc').value=c.desc||'';
+    document.getElementById('fSegment').value=c.segment;
+    document.getElementById('fDur').value=c.dur;
+    document.getElementById('fSpend').value=c.spend;
+    document.getElementById('fColor').value=c.color;
+    editRules=JSON.parse(JSON.stringify(c.rules||[]));
+    document.getElementById('btnDelCamp').classList.remove('hidden');
+  } else {
+    document.getElementById('campModalTitle').textContent='Add Campaign';
+    document.getElementById('fName').value='';document.getElementById('fDesc').value='';
+    if(S.segments.length)document.getElementById('fSegment').value=S.segments[0].name;
+    document.getElementById('fDur').value=7;document.getElementById('fSpend').value=10000;
+    document.getElementById('fColor').value='#6366f1';
+    editRules=[];
+    document.getElementById('btnDelCamp').classList.add('hidden');
+  }
+  renderRules();
+  document.getElementById('campModal').classList.remove('hidden');
+  document.getElementById('fName').focus();
+}
+function closeCampModal(){document.getElementById('campModal').classList.add('hidden');S.editingCamp=null;editRules=[];}
+
+function fieldOpts(){
+  return '<option value="tags">Tag</option>'+S.glossCols.map(c=>`<option value="${esc(c.key)}">${esc(c.label)}</option>`).join('');
+}
+function opOpts(f){
+  if(f==='tags')return '<option value="contains">has tag</option><option value="not_contains">does NOT have tag</option>';
+  return '<option value=">=">≥</option><option value=">">></option><option value="<=">≤</option><option value="<"><</option><option value="=">=</option><option value="!=">≠</option>';
+}
+
+function renderRules(){
+  document.getElementById('rulesList').innerHTML=editRules.map((r,i)=>`
+    <div class="rule-row">
+      <select class="r-sel" onchange="updRuleField(${i},this.value)">${fieldOpts().replace(`value="${r.field}"`,`value="${r.field}" selected`)}</select>
+      <select class="r-sel" onchange="updRuleOp(${i},this.value)">${opOpts(r.field).replace(`value="${r.op}"`,`value="${r.op}" selected`)}</select>
+      <input class="r-val" type="${r.field==='tags'?'text':'number'}" value="${esc(String(r.value||''))}"
+             placeholder="${r.field==='tags'?'tag name':'value'}" oninput="updRuleVal(${i},this.value)">
+      <button class="r-rm" onclick="rmRule(${i})">✕</button>
+    </div>`).join('');
+  updatePreview();
+}
+function addRule(){const f=S.glossCols.length?S.glossCols[0].key:'tags';editRules.push({field:f,op:f==='tags'?'contains':'>=',value:''});renderRules();}
+function rmRule(i){editRules.splice(i,1);renderRules();}
+function updRuleField(i,v){editRules[i].field=v;editRules[i].op=v==='tags'?'contains':'>=';editRules[i].value='';renderRules();}
+function updRuleOp(i,v){editRules[i].op=v;updatePreview();}
+function updRuleVal(i,v){editRules[i].value=v;updatePreview();}
+
+function updatePreview(){
+  const el=document.getElementById('rulesPreview');
+  const valid=editRules.filter(r=>r.value!==''&&r.value!==undefined);
+  if(!valid.length){el.className='rules-preview rp-empty';el.textContent='No rules — uses display segment for reach';return;}
+  const fake={rules:valid};
+  const m=S.segments.filter(s=>valid.every(r=>evalSegRule(s,r)));
+  if(m.length){
+    const reach=m.reduce((s,x)=>s+x.size,0);
+    el.className='rules-preview rp-match';
+    el.innerHTML=`✓ Matches <b>${m.length}</b> segment${m.length!==1?'s':''}: ${m.map(s=>esc(s.name)).join(', ')} → <b>${fmtNum(reach)} users</b>`;
+  } else {el.className='rules-preview rp-none';el.textContent='⚠ No segments match these rules';}
+}
+
+function saveCampaign(){
+  const name=document.getElementById('fName').value.trim();if(!name){alert('Please enter a campaign name.');return;}
+  const data={name,desc:document.getElementById('fDesc').value.trim(),segment:document.getElementById('fSegment').value,
+    dur:Math.max(1,parseInt(document.getElementById('fDur').value)||7),
+    spend:parseInt(document.getElementById('fSpend').value)||0,
+    color:document.getElementById('fColor').value,
+    rules:JSON.parse(JSON.stringify(editRules.filter(r=>r.value!==''&&r.value!==undefined)))};
+  if(S.editingCamp){const i=S.campaigns.findIndex(c=>c.id===S.editingCamp);if(i!==-1)S.campaigns[i]={...S.campaigns[i],...data};}
+  else S.campaigns.push({id:uid(),...data});
+  closeCampModal();save();render();
+}
+function deleteCampaign(){
+  if(!S.editingCamp)return;
+  if(!confirm('Delete this campaign? All placements will also be removed.'))return;
+  S.campaigns=S.campaigns.filter(c=>c.id!==S.editingCamp);
+  S.placements=S.placements.filter(p=>p.campaignId!==S.editingCamp);
+  closeCampModal();save();render();
+}
+function delFromArsenal(e,cid){
+  e.stopPropagation();const c=getCamp(cid);if(!c)return;
+  const placed=S.placements.filter(p=>p.campaignId===cid).length;
+  if(!confirm(placed?`Remove "${c.name}"? ${placed} placement(s) will also be removed.`:`Remove "${c.name}" from the arsenal?`))return;
+  S.campaigns=S.campaigns.filter(x=>x.id!==cid);
+  S.placements=S.placements.filter(p=>p.campaignId!==cid);
+  save();render();
+}
+
+// ══════════════════════════════════════════════
+//  NAVIGATION
+// ══════════════════════════════════════════════
+function changeMonth(d){S.month+=d;if(S.month>11){S.month=0;S.year++;}if(S.month<0){S.month=11;S.year--;}render();}
+function switchView(v){
+  S.view=v;
+  ['tabCal','tabGantt','tabSeg','tabUsers'].forEach(id=>document.getElementById(id).classList.remove('active'));
+  ({calendar:'tabCal',gantt:'tabGantt',segments:'tabSeg',users:'tabUsers'}[v]&&
+   document.getElementById({calendar:'tabCal',gantt:'tabGantt',segments:'tabSeg',users:'tabUsers'}[v]).classList.add('active'));
+  const showNav=v==='calendar'||v==='gantt';
+  ['navPrev','navNext','viewTitle'].forEach(id=>document.getElementById(id).style.visibility=showNav?'visible':'hidden');
+  render();
+}
+function ovClick(e,id){if(e.target===e.currentTarget)document.getElementById(id).classList.add('hidden');}
+
+// ══════════════════════════════════════════════
+//  MAIN RENDER
+// ══════════════════════════════════════════════
+function render(){
+  const mn=new Date(S.year,S.month,1).toLocaleString('default',{month:'long',year:'numeric'});
+  document.getElementById('viewTitle').textContent=mn;
+  renderStats();renderArsenal();
+  if(S.view==='calendar')      renderCalendar();
+  else if(S.view==='gantt')    renderGantt();
+  else if(S.view==='segments') renderSegments();
+  else if(S.view==='users')    renderUsers();
+}
+
+load();render();
+</script>
+</body>
+</html>
