@@ -240,6 +240,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     <span class="badge badge-saved hidden" id="savedBadge">✓ Saved</span>
   </div>
   <div class="header-hint" id="syncStatus">Drag campaigns onto the calendar · ☁ Connecting…</div>
+  <div style="display:flex;align-items:center;gap:8px;">
+    <button onclick="exportBackup()" style="padding:5px 12px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);color:white;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;" title="Download a JSON backup of all data">⬇ Export Backup</button>
+    <label style="padding:5px 12px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);color:#94a3b8;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;" title="Restore from a previously exported backup">⬆ Restore
+      <input type="file" accept=".json" onchange="restoreBackup(this)" style="display:none;">
+    </label>
+  </div>
 </div>
 
 <!-- STATS -->
@@ -1132,6 +1138,45 @@ function delFromArsenal(e,cid){
   S.campaigns=S.campaigns.filter(x=>x.id!==cid);
   S.placements=S.placements.filter(p=>p.campaignId!==cid);
   save();render();
+}
+
+// ══════════════════════════════════════════════
+//  BACKUP / RESTORE
+// ══════════════════════════════════════════════
+function exportBackup(){
+  const data={
+    campaigns:S.campaigns, placements:S.placements,
+    segments:S.segments,   glossCols:S.glossCols,
+    exportedAt: new Date().toISOString(),
+    version: 'v4',
+  };
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download=`liveops-backup-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function restoreBackup(inp){
+  const f=inp.files[0]; if(!f)return;
+  const r=new FileReader();
+  r.onload=e=>{
+    try{
+      const d=JSON.parse(e.target.result);
+      const when=d.exportedAt?new Date(d.exportedAt).toLocaleString():'unknown date';
+      if(!confirm(`Restore backup from ${when}?\n\nThis will overwrite the current data for EVERYONE on the team.`)){inp.value='';return;}
+      if(d.campaigns)  S.campaigns  = d.campaigns;
+      if(d.placements) S.placements = d.placements;
+      if(d.segments)   S.segments   = d.segments;
+      if(d.glossCols)  S.glossCols  = d.glossCols;
+      save(); render();
+      alert('✓ Backup restored successfully! Everyone will see the restored data.');
+    }catch(err){alert('Could not read backup file — make sure it\'s a valid liveops backup JSON.');}
+    inp.value='';
+  };
+  r.readAsText(f);
 }
 
 // ══════════════════════════════════════════════
