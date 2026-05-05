@@ -225,6 +225,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .tip.hidden{display:none;}
 .hidden{display:none!important;}
 </style>
+<!-- Firebase SDKs (compat build — works in plain HTML) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 </head>
 <body>
 
@@ -236,7 +239,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     <span class="badge badge-beta">BETA</span>
     <span class="badge badge-saved hidden" id="savedBadge">✓ Saved</span>
   </div>
-  <div class="header-hint">Drag campaigns onto the calendar · Auto-saved in browser</div>
+  <div class="header-hint" id="syncStatus">Drag campaigns onto the calendar · ☁ Connecting…</div>
 </div>
 
 <!-- STATS -->
@@ -329,9 +332,40 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
 <script>
 // ══════════════════════════════════════════════
+//  FIREBASE SETUP
+// ══════════════════════════════════════════════
+const FB_CONFIG = {
+  apiKey:            "AIzaSyCUcH44xczLCx9XyOzARRsdjapVsG3Iztw",
+  authDomain:        "liveops-planner-d5b1a.firebaseapp.com",
+  databaseURL:       "https://liveops-planner-d5b1a-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId:         "liveops-planner-d5b1a",
+  storageBucket:     "liveops-planner-d5b1a.firebasestorage.app",
+  messagingSenderId: "164721110758",
+  appId:             "1:164721110758:web:dee73ffec5f5781741d527",
+};
+firebase.initializeApp(FB_CONFIG);
+const db    = firebase.database();
+const dbRef = db.ref('liveops');
+
+// Connection status indicator
+db.ref('.info/connected').on('value', snap => {
+  const el = document.getElementById('syncStatus');
+  if (!el) return;
+  if (snap.val()) {
+    el.textContent = 'Drag campaigns onto the calendar · ☁ Live — all changes sync instantly';
+    el.style.color  = '#34d399';
+  } else {
+    el.textContent = 'Drag campaigns onto the calendar · ⚠ Reconnecting to Firebase…';
+    el.style.color  = '#fca5a5';
+  }
+});
+
+// localStorage key — ONLY for CSV user data (large, stays per-browser)
+const LS_USERS_KEY = 'liveops_users';
+
+// ══════════════════════════════════════════════
 //  STATE
 // ══════════════════════════════════════════════
-const LS_KEY = 'liveops_v4';
 
 const DEF_SEGMENTS = [
   {id:'sg1',name:'VIP Players',    size:5000,  tags:['loyal','whale','high_spender'],  attrs:{lifetime_spend:1500,days_last_deposited:2, days_last_active:1, level:85}},
@@ -378,33 +412,32 @@ let UP = {search:'', page:0, pageSize:50};
 let editRules = [];
 
 // ══════════════════════════════════════════════
-//  PERSISTENCE
+//  PERSISTENCE  (Firebase = shared  /  localStorage = CSV users only)
 // ══════════════════════════════════════════════
+let _saving = false;
 function save(){
   try{
-    localStorage.setItem(LS_KEY,JSON.stringify({
+    // Shared collaborative data → Firebase (everyone sees this)
+    dbRef.set({
       campaigns:S.campaigns, placements:S.placements,
       segments:S.segments,   glossCols:S.glossCols,
-      users:S.users,         userCols:S.userCols, lastImport:S.lastImport,
-    }));
+    });
+    // CSV user data → localStorage only (can be large; per-browser)
+    try{localStorage.setItem(LS_USERS_KEY,JSON.stringify({users:S.users,userCols:S.userCols,lastImport:S.lastImport}));}catch(e){}
     const b=document.getElementById('savedBadge');
     b.classList.remove('hidden');
     clearTimeout(b._t); b._t=setTimeout(()=>b.classList.add('hidden'),1800);
   }catch(e){console.warn('Save failed',e);}
 }
 
-function load(){
+function loadLocalUsers(){
   try{
-    const raw=localStorage.getItem(LS_KEY); if(!raw)return;
+    const raw=localStorage.getItem(LS_USERS_KEY); if(!raw)return;
     const d=JSON.parse(raw);
-    if(d.campaigns)  S.campaigns  = d.campaigns;
-    if(d.placements) S.placements = d.placements;
-    if(d.segments)   S.segments   = d.segments;
-    if(d.glossCols)  S.glossCols  = d.glossCols;
     if(d.users)      S.users      = d.users;
     if(d.userCols)   S.userCols   = d.userCols;
     if(d.lastImport) S.lastImport = d.lastImport;
-  }catch(e){console.warn('Load failed',e);}
+  }catch(e){console.warn('Load users failed',e);}
 }
 
 // ══════════════════════════════════════════════
@@ -1129,7 +1162,23 @@ function render(){
   else if(S.view==='users')    renderUsers();
 }
 
-load();render();
+// Load local CSV users (per-browser, not synced)
+loadLocalUsers();
+
+// Connect to Firebase — fires immediately with current data, then on every change
+dbRef.on('value', snap => {
+  const d = snap.val();
+  if(d){
+    if(d.campaigns)  S.campaigns  = d.campaigns;
+    if(d.placements) S.placements = d.placements;
+    if(d.segments)   S.segments   = d.segments;
+    if(d.glossCols)  S.glossCols  = d.glossCols;
+  }
+  render();
+}, err => {
+  console.error('Firebase read error:', err);
+  render(); // still render with default data if Firebase fails
+});
 </script>
 </body>
 </html>
