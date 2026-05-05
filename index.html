@@ -701,7 +701,7 @@ function renderArsenal(){
     return `<div class="camp-card" draggable="true" data-cid="${c.id}"
          style="border-color:${c.color}22;background:${c.color}09;"
          ondragstart="onDS(event,'${c.id}')" ondragend="onDE()"
-         ontouchstart="onTouchStart(event,'${c.id}')"
+         ontouchstart="onTouchStart(event,'${c.id}')">
       <div class="card-top">
         <div class="card-dot" style="background:${c.color}"></div>
         <div class="card-name">${esc(c.name)}${hasRules?'<span class="rules-pill">rules</span>':''}</div>
